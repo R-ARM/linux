@@ -104,6 +104,7 @@ struct st7701 {
 	struct regulator_bulk_data *supplies;
 	struct gpio_desc *reset;
 	unsigned int sleep_delay;
+	enum drm_panel_orientation orientation;
 };
 
 static inline struct st7701 *panel_to_st7701(struct drm_panel *panel)
@@ -280,6 +281,8 @@ static int st7701_get_modes(struct drm_panel *panel,
 	connector->display_info.width_mm = desc_mode->width_mm;
 	connector->display_info.height_mm = desc_mode->height_mm;
 
+	drm_connector_set_panel_orientation(connector, st7701->orientation);
+
 	return 1;
 }
 
@@ -379,6 +382,13 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 		return ret;
 
 	drm_panel_add(&st7701->panel);
+
+
+	ret = of_drm_get_panel_orientation(dev->of_node, &st7701->orientation);
+	if (ret < 0) {
+		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
+		return ret;
+	}
 
 	mipi_dsi_set_drvdata(dsi, st7701);
 	st7701->dsi = dsi;
