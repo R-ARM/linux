@@ -25,6 +25,11 @@
 #define DSI_CMD2_BK0_LNESET		0xC0 /* Display Line setting */
 #define DSI_CMD2_BK0_PORCTRL		0xC1 /* Porch control */
 #define DSI_CMD2_BK0_INVSEL		0xC2 /* Inversion selection, Frame Rate Control */
+#define DSI_CMD2_BK0_SECTRL1		0xE0 /* Sunlight Readable Enhancement */
+#define DSI_CMD2_BK0_NRCTRL		0xE1 /* Noise Reduce Control */
+#define DSI_CMD2_BK0_SECTRL2		0xE2 /* Sharpness Control */
+#define DSI_CMD2_BK0_CCCTRL		0xE3 /* Color Calibration Control */
+#define DSI_CMD2_BK0_SKCTRL		0xE4 /* Skin Tone Preservation Control */
 
 /* Command2, BK1 commands */
 #define DSI_CMD2_BK1_VRHS		0xB0 /* Vop amplitude setting */
@@ -94,6 +99,8 @@ struct st7701_panel_desc {
 	const char *const *supply_names;
 	unsigned int num_supplies;
 	unsigned int panel_sleep_delay;
+	unsigned int reset_level;
+	void (*init_sequence)();
 };
 
 struct st7701 {
