@@ -91,6 +91,8 @@
 #define DSI_MIPISET1_EOT_EN		BIT(3)
 #define DSI_CMD2_BK1_MIPISET1_SET	(BIT(7) | DSI_MIPISET1_EOT_EN)
 
+struct st7701;
+
 struct st7701_panel_desc {
 	const struct drm_display_mode *mode;
 	unsigned int lanes;
@@ -100,7 +102,7 @@ struct st7701_panel_desc {
 	unsigned int num_supplies;
 	unsigned int panel_sleep_delay;
 	unsigned int reset_level;
-	void (*init_sequence)();
+	void (*init_sequence)(struct st7701 *st7701);
 };
 
 struct st7701 {
@@ -407,15 +409,40 @@ static const struct st7701_panel_desc ts8550b_desc = {
 };
 
 static const struct drm_display_mode kd50t048a_mode = {
+	.clock          = 27500,
+
+	.hdisplay       = 480,
+	.hsync_start    = 480 + 2,
+	.hsync_end      = 480 + 2 + 10,
+	.htotal         = 480 + 2 + 10 + 2,
+
+	.vdisplay       = 854,
+	.vsync_start    = 854 + 12,
+	.vsync_end      = 854 + 12 + 2,
+	.vtotal         = 854 + 12 + 2 + 60,
+
+	.width_mm       = 69,
+	.height_mm      = 139,
+
+	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
+};
+
+static const char * const kd50t048a_supply_names[] = {
+	"VCC",
+	"IOVCC",
+};
+
+static const struct st7701_panel_desc kd50t048a_desc = {
 	.mode = &kd50t048a_mode,
 	.lanes = 2,
-	.flags = MIPI_DSI_MODE_VIDEO,
+	.flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_CLOCK_NON_CONTINUOUS | MIPI_DSI_MODE_VIDEO_BURST,
 	.format = MIPI_DSI_FMT_RGB888,
-	.supply_names = st7701_supply_names,
-	.num_supplies = ARRAY_SIZE(st7701_supply_names),
+	.supply_names = kd50t048a_supply_names,
+	.num_supplies = ARRAY_SIZE(kd50t048a_supply_names),
 	.panel_sleep_delay = 0,
 	.reset_level = 1, /* reset is inverted compared to ts8550b */
 	.init_sequence = kd50t048a_init_sequence,
+};
 
 static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 {
@@ -472,9 +499,9 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 
 	drm_panel_add(&st7701->panel);
 
-	ret = of_drm_get_panel_orientation(dev->of_node, &st7701->orientation);
+	ret = of_drm_get_panel_orientation(dsi->dev.of_node, &st7701->orientation);
 	if (ret < 0) {
-		dev_err(dev, "%pOF: failed to get orientation %d\n", dev->of_node, ret);
+		dev_err(&dsi->dev, "%pOF: failed to get orientation %d\n", &dsi->dev.of_node, ret);
 		return ret;
 	}
 
