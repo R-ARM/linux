@@ -18,6 +18,67 @@
 		stdout-path = "serial2:115200n8";
 	};
 
+	mux: mux-controller {
+		status = "okay";
+		compatible = "gpio-mux";
+		#mux-control-cells = <0>;
+
+		mux-gpios = <&gpio3 RK_PB3 GPIO_ACTIVE_LOW>,
+			    <&gpio3 RK_PB0 GPIO_ACTIVE_LOW>;
+//		mux-en-gpio = <&gpio3 RK_PB5 GPIO_ACTIVE_LOW>;
+	};
+
+	adcmux: adc-mux {
+		status = "okay";
+		compatible = "io-channel-mux";
+		io-channels = <&saradc 1>;
+		io-channel-names = "parent";
+		#io-channel-cells = <1>;
+
+		mux-controls = <&mux>;
+
+		channels = "0", "1", "2", "3";
+	};
+
+	analog {
+		compatible = "adc-joystick";
+		io-channels = <&adcmux 0>, <&adcmux 1>, <&adcmux 2>, <&adcmux 3>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		
+		axis@0 {
+			reg = <0>;
+			abs-flat = <32>;
+			abs-fuzz = <10>;
+			abs-range = <180 800>;
+			linux,code = <ABS_X>;
+		};
+
+		axis@1 {
+			reg = <1>;
+			abs-flat = <32>;
+			abs-fuzz = <10>;
+			abs-range = <180 800>;
+			linux,code = <ABS_RX>;
+		};
+
+		axis@2 {
+			reg = <2>;
+			abs-flat = <32>;
+			abs-fuss = <10>;
+			abs-range = <180 800>;
+			linux,code = <ABS_Y>;
+		};
+
+		axis@3 {
+			reg = <3>;
+			abs-flat = <32>;
+			abs-fuss = <10>;
+			abs-range = <180 800>;
+			linux,code = <ABS_RY>;
+		};
+	};	
+
 	gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
@@ -121,7 +182,7 @@
                 sw19 {
                         gpios = <&gpio3 RK_PB1 GPIO_ACTIVE_LOW>;
                         label = "GPIO F1";
-                        linux,code = <BTN_TRIGGER_HAPPY1>;
+                        linux,code = <BTN_START>;
                 };
                 sw20 {
                         gpios = <&gpio3 RK_PB7 GPIO_ACTIVE_LOW>;
@@ -136,7 +197,7 @@
                 sw22 {
                         gpios = <&gpio3 RK_PB4 GPIO_ACTIVE_LOW>;
                         label = "GPIO F2";
-                        linux,code = <BTN_TRIGGER_HAPPY2>;
+                        linux,code = <BTN_SELECT>;
                 };
 	};
 
