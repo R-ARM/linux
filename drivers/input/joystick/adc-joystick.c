@@ -28,6 +28,17 @@ struct adc_joystick {
 	int num_chans;
 };
 
+static void adc_joystick_poll(struct input_dev *input)
+{
+	struct adc_joystick *joy = input_get_drvdata(input);
+	int i, val;
+	for (i = 0; i < joy->num_chans; i++) {
+		iio_read_channel_raw(&joy->chans[i], &val);
+		input_report_abs(input, joy->axes[i].code, val);
+	}
+	input_sync(input);
+}
+
 static int adc_joystick_handle(const void *data, void *private)
 {
 	struct adc_joystick *joy = private;
@@ -179,6 +190,8 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	int error;
 	int bits;
 	int i;
+	int polling;
+	polling = 1;
 
 	joy = devm_kzalloc(dev, sizeof(*joy), GFP_KERNEL);
 	if (!joy)
@@ -192,19 +205,26 @@ static int adc_joystick_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	/* Count how many channels we got. NULL terminated. */
-	for (i = 0; joy->chans[i].indio_dev; i++) {
-		bits = joy->chans[i].channel->scan_type.storagebits;
-		if (!bits || bits > 16) {
-			dev_err(dev, "Unsupported channel storage size\n");
-			return -EINVAL;
+	if (polling == 0)
+	{
+		/* Count how many channels we got. NULL terminated. */
+		for (i = 0; joy->chans[i].indio_dev; i++) {
+			bits = joy->chans[i].channel->scan_type.storagebits;
+			if (!bits || bits > 16) {
+				dev_err(dev, "Unsupported channel storage size\n");
+				return -EINVAL;
+			}
+			if (bits != joy->chans[0].channel->scan_type.storagebits) {
+				dev_err(dev, "Channels must have equal storage size\n");
+				return -EINVAL;
+			}
 		}
-		if (bits != joy->chans[0].channel->scan_type.storagebits) {
-			dev_err(dev, "Channels must have equal storage size\n");
-			return -EINVAL;
-		}
+		joy->num_chans = i;
 	}
-	joy->num_chans = i;
+	else
+	{
+		joy->num_chans = device_get_child_node_count(dev);
+	}
 
 	input = devm_input_allocate_device(dev);
 	if (!input) {
@@ -215,8 +235,17 @@ static int adc_joystick_probe(struct platform_device *pdev)
 	joy->input = input;
 	input->name = pdev->name;
 	input->id.bustype = BUS_HOST;
-	input->open = adc_joystick_open;
-	input->close = adc_joystick_close;
+
+	if (polling == 1)
+	{
+		input_setup_polling(input, adc_joystick_poll);
+		input_set_poll_interval(input, 10);
+	}
+	else
+	{
+		input->open = adc_joystick_open;
+		input->close = adc_joystick_close;
+	}
 
 	error = adc_joystick_set_axes(dev, joy);
 	if (error)
@@ -229,16 +258,19 @@ static int adc_joystick_probe(struct platform_device *pdev)
 		return error;
 	}
 
-	joy->buffer = iio_channel_get_all_cb(dev, adc_joystick_handle, joy);
-	if (IS_ERR(joy->buffer)) {
-		dev_err(dev, "Unable to allocate callback buffer\n");
-		return PTR_ERR(joy->buffer);
-	}
+	if (polling == 0)
+	{
+		joy->buffer = iio_channel_get_all_cb(dev, adc_joystick_handle, joy);
+		if (IS_ERR(joy->buffer)) {
+			dev_err(dev, "Unable to allocate callback buffer\n");
+			return PTR_ERR(joy->buffer);
+		}
 
-	error = devm_add_action_or_reset(dev, adc_joystick_cleanup, joy->buffer);
-	if (error)  {
-		dev_err(dev, "Unable to add action\n");
-		return error;
+		error = devm_add_action_or_reset(dev, adc_joystick_cleanup, joy->buffer);
+		if (error)  {
+			dev_err(dev, "Unable to add action\n");
+			return error;
+		}
 	}
 
 	return 0;
