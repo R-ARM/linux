@@ -22,7 +22,7 @@
 		stdout-path = "serial2:115200n8";
 	};
 
-	adc-joystick {
+	analog {
 		compatible = "adc-joystick";
 		io-channels = <&saradc 1>,
 			      <&saradc 2>;
